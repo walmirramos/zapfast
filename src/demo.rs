@@ -2020,6 +2020,14 @@ pub fn apply_flags(app: &mut App, page: Option<&str>) {
         match part {
             "history-date" => history_date_sample(app),
             "chat" | "" => {}
+            "material-solid" => {
+                app.settings.window_material = crate::settings::WindowMaterial::Solid
+            }
+            "material-acrylic" => {
+                app.settings.window_material = crate::settings::WindowMaterial::Acrylic
+            }
+            "material-mica" => app.settings.window_material = crate::settings::WindowMaterial::Mica,
+            "material-auto" => app.settings.window_material = crate::settings::WindowMaterial::Auto,
             "blocked" | "blocked-contacts" | "block-confirm" => {
                 app.blocklist.ids = Some(if part == "block-confirm" {
                     Default::default()
@@ -23648,6 +23656,7 @@ mod wallpaper_tests {
     #[test]
     fn the_theme_wallpaper_follows_the_palette() {
         let mut app = app();
+        app.settings.show_wallpaper = true;
         apply_flags(&mut app, Some("theme=Nord.json"));
         let ctx = egui::Context::default();
         app.attach(&ctx);
@@ -23699,6 +23708,9 @@ mod wallpaper_tests {
     #[test]
     fn a_wallpaper_image_replaces_colour_and_doodles() {
         let mut app = app();
+        // Exercise the opt-in doodles preference, independently of the
+        // platform's default appearance.
+        app.settings.show_wallpaper = true;
         apply_flags(&mut app, Some("wallpaper,wallpaper-image"));
         let ctx = egui::Context::default();
         app.attach(&ctx);

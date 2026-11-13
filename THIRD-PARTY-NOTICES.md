@@ -1,5 +1,44 @@
 # Third-party notices
 
+## Windows desktop materials: window-vibrancy 0.8.1
+
+Source: https://github.com/tauri-apps/tauri-plugin-vibrancy . Used as a native
+window-material library; no Tauri application framework or browser is included.
+Redistributed under its MIT license:
+
+```text
+MIT License
+
+Copyright (c) 2020-2022 Tauri Programme within The Commons Conservancy
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## WhatsApp emoji artwork (Windows 11 edition)
+
+The embedded external `WhatsAppEmoji.ttf` font is obtained from
+https://github.com/dmlls/whatsapp-emoji-linux/releases/tag/2.26.8.72-1 .
+Emoji images belong to WhatsApp LLC/Meta and are not MIT- or Apache-licensed
+by this project. The supplying project provides them for non-commercial,
+educational use. See `packaging/WHATSAPP_EMOJI.md` for provenance and digest.
+This edition is not affiliated with or endorsed by WhatsApp or Meta.
+
 ## Pidgin notification sounds
 
 `assets/sounds/receive.wav` and `assets/sounds/alert.wav`, built into ZapFast,

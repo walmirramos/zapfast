@@ -568,13 +568,14 @@ pub fn submenu<R>(
         }
         let icon_rect =
             Rect::from_center_size(pos2(rect.left() + 18.0, rect.center().y), Vec2::splat(16.0));
-        icon.image(palette.secondary, 16.0).paint_at(ui, icon_rect);
+        icon.fluent_image(palette.secondary, 16.0)
+            .paint_at(ui, icon_rect);
         let chevron = Rect::from_center_size(
             pos2(rect.right() - 16.0, rect.center().y),
             Vec2::splat(14.0),
         );
         Icon::ChevronRight
-            .image(palette.secondary, 14.0)
+            .fluent_image(palette.secondary, 14.0)
             .paint_at(ui, chevron);
         let x = rect.left() + 36.0;
         let mut job = egui::text::LayoutJob::simple_singleline(
@@ -687,7 +688,7 @@ pub fn menu_item_focusable(
         if let Some(icon) = icon {
             let icon_rect =
                 Rect::from_center_size(pos2(x + 8.0, rect.center().y), Vec2::splat(16.0));
-            icon.image(
+            icon.fluent_image(
                 if enabled {
                     palette.secondary
                 } else {
@@ -947,7 +948,7 @@ pub fn raised<R>(
 /// Shared popup-menu frame.
 pub fn menu_frame(palette: &Palette) -> egui::Frame {
     egui::Frame::new()
-        .fill(palette.overlay)
+        .fill(theme::menu_fill(palette))
         .stroke(Stroke::new(1.0, palette.outline))
         .corner_radius(CornerRadius::same(theme::RADIUS))
         .inner_margin(egui::Margin::same(6))
@@ -1026,7 +1027,7 @@ pub fn search_field(
     let icon_rect =
         Rect::from_center_size(pos2(rect.left() + 18.0, rect.center().y), Vec2::splat(16.0));
     Icon::Search
-        .image(palette.secondary, 16.0)
+        .fluent_image(palette.secondary, 16.0)
         .paint_at(ui, icon_rect);
     let format = egui::TextFormat::simple(theme::regular(14.0), palette.text);
     // A capital, from its top to the baseline, centres on the icons, which
@@ -1161,7 +1162,7 @@ pub fn switch(ui: &mut Ui, palette: &Palette, on: &mut bool) -> egui::Response {
         if t > 0.5 {
             let check = Rect::from_center_size(center, Vec2::splat(12.0));
             Icon::Check
-                .image(palette.accent.gamma_multiply((t - 0.5) * 2.0), 12.0)
+                .fluent_image(palette.accent.gamma_multiply((t - 0.5) * 2.0), 12.0)
                 .paint_at(ui, check);
         }
     }
@@ -1503,6 +1504,9 @@ pub fn bubble_shape(
     pixels_per_point: f32,
     screen: egui::Rangef,
 ) -> egui::Shape {
+    if palette.bubbles == theme::BubbleStyle::Fluent {
+        return egui::Shape::rect_filled(rect, CornerRadius::same(8), fill);
+    }
     if palette.bubbles == theme::BubbleStyle::Messages {
         // Your own balloons run from the palette's colour at the top of the
         // view to a deeper one at its bottom, as ChatKit's dynamic gradient
@@ -2603,7 +2607,7 @@ mod tests {
         assert_eq!((right.nw, right.ne), (BUBBLE_RADIUS, 0));
 
         let rect = Rect::from_min_size(pos2(100.0, 50.0), vec2(200.0, 40.0));
-        let palette = Palette::light();
+        let palette = Palette::whatsapp_light();
         for (side, outside) in [(Side::Left, 92.0), (Side::Right, 308.0)] {
             let egui::Shape::Vec(shapes) =
                 bubble_shape(&palette, rect, palette.bubble_out, Some(side), 2.0, SCREEN)
@@ -2645,7 +2649,7 @@ mod tests {
         let rect = Rect::from_min_size(pos2(100.5, 50.25), vec2(213.75, 41.5));
         // FNV-1a, stable across toolchains, over every shape's debug text.
         let mut fingerprint: u64 = 0xcbf2_9ce4_8422_2325;
-        for palette in [Palette::dark(), Palette::light()] {
+        for palette in [Palette::whatsapp_dark(), Palette::whatsapp_light()] {
             for tail in [None, Some(Side::Left), Some(Side::Right)] {
                 for (fill, ppp) in [(palette.bubble_out, 1.0), (palette.bubble_in, 1.5)] {
                     let shape = bubble_shape(&palette, rect, fill, tail, ppp, SCREEN);

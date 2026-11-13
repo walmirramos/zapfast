@@ -1092,7 +1092,7 @@ fn locked_entry(app: &mut App, ui: &mut egui::Ui) {
         let icon_rect =
             Rect::from_center_size(pos2(rect.left() + 38.0, rect.center().y), Vec2::splat(22.0));
         Icon::LockOpen
-            .image(palette.accent, 22.0)
+            .fluent_image(palette.accent, 22.0)
             .paint_at(ui, icon_rect);
         ui.painter().text(
             pos2(rect.left() + 76.0, rect.center().y),
@@ -1630,14 +1630,16 @@ fn row(app: &mut App, ui: &mut egui::Ui, chat: &Chat) -> egui::Response {
             let icon_rect =
                 Rect::from_center_size(pos2(badge_right - 8.0, line_y + 8.0), Vec2::splat(15.0));
             Icon::VolumeX
-                .image(palette.dim, 15.0)
+                .fluent_image(palette.dim, 15.0)
                 .paint_at(ui, icon_rect);
             badge_right -= 20.0;
         }
         if chat.pinned {
             let icon_rect =
                 Rect::from_center_size(pos2(badge_right - 8.0, line_y + 8.0), Vec2::splat(14.0));
-            Icon::Pin.image(palette.dim, 14.0).paint_at(ui, icon_rect);
+            Icon::Pin
+                .fluent_image(palette.dim, 14.0)
+                .paint_at(ui, icon_rect);
             badge_right -= 20.0;
         }
         let mut x = left;
@@ -2016,7 +2018,7 @@ fn compact_locked_entry(app: &mut App, ui: &mut egui::Ui) {
             );
         }
         Icon::LockOpen
-            .image(palette.accent, 22.0)
+            .fluent_image(palette.accent, 22.0)
             .paint_at(ui, Rect::from_center_size(rect.center(), Vec2::splat(22.0)));
     }
     ui.ctx()

@@ -53,9 +53,17 @@ pub fn clear_color(window: egui::Color32) -> egui::Color32 {
 
 /// Gives the window its material while `palette` wants one, takes it away
 /// otherwise, and records which for [`active`]. Cheap to call every frame.
-pub fn apply(frame: &eframe::Frame, palette: &crate::theme::Palette, transparent: bool) {
-    let wanted = palette.vibrant() && transparent;
-    ACTIVE.store(platform::apply(frame, palette, wanted), Ordering::Relaxed);
+pub fn apply(
+    frame: &eframe::Frame,
+    palette: &crate::theme::Palette,
+    transparent: bool,
+    material: crate::settings::WindowMaterial,
+) {
+    let wanted = palette.system_material() && transparent;
+    ACTIVE.store(
+        platform::apply(frame, palette, wanted, material),
+        Ordering::Relaxed,
+    );
 }
 
 #[cfg(target_os = "macos")]
@@ -64,7 +72,12 @@ mod platform {
         true
     }
 
-    pub fn apply(frame: &eframe::Frame, palette: &crate::theme::Palette, wanted: bool) -> bool {
+    pub fn apply(
+        frame: &eframe::Frame,
+        palette: &crate::theme::Palette,
+        wanted: bool,
+        _material: crate::settings::WindowMaterial,
+    ) -> bool {
         crate::macos::vibrancy(frame, palette, wanted);
         wanted
     }
@@ -74,26 +87,34 @@ mod platform {
 mod platform {
     use std::sync::Mutex;
 
+    use crate::settings::WindowMaterial;
+
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
     use windows::Win32::Foundation::HWND;
     use windows::Win32::Graphics::Dwm::{
-        DWMSBT_MAINWINDOW, DWMSBT_NONE, DWMWA_SYSTEMBACKDROP_TYPE, DWMWA_USE_IMMERSIVE_DARK_MODE,
-        DwmExtendFrameIntoClientArea, DwmSetWindowAttribute,
+        DWMSBT_MAINWINDOW, DWMSBT_NONE, DWMSBT_TRANSIENTWINDOW, DWMWA_SYSTEMBACKDROP_TYPE,
+        DWMWA_USE_IMMERSIVE_DARK_MODE, DwmExtendFrameIntoClientArea, DwmSetWindowAttribute,
     };
     use windows::Win32::UI::Controls::MARGINS;
     use windows::core::BOOL;
 
-    /// Windows 11 22H2 and later; earlier versions refuse Mica in `apply`,
-    /// and the window stays opaque.
+    /// Windows 11 uses Mica; Windows 10 can fall back to native Acrylic.
     pub fn may_show_through() -> bool {
         true
     }
 
     /// The window last given a backdrop, whether it was dark, and whether
     /// Windows accepted it, so DWM is asked only when something changes.
-    static APPLIED: Mutex<Option<(isize, bool, bool, bool)>> = Mutex::new(None);
+    type AppliedMaterial = (isize, bool, bool, WindowMaterial, bool);
+    static APPLIED: Mutex<Option<AppliedMaterial>> = Mutex::new(None);
 
-    pub fn apply(frame: &eframe::Frame, palette: &crate::theme::Palette, wanted: bool) -> bool {
+    pub fn apply(
+        frame: &eframe::Frame,
+        palette: &crate::theme::Palette,
+        wanted: bool,
+        material: WindowMaterial,
+    ) -> bool {
+        let wanted = wanted && material != WindowMaterial::Solid;
         let Ok(handle) = frame.window_handle() else {
             return false;
         };
@@ -101,13 +122,17 @@ mod platform {
             return false;
         };
         let hwnd = HWND(handle.hwnd.get() as *mut _);
-        let key = (handle.hwnd.get(), wanted, palette.dark);
+        let key = (handle.hwnd.get(), wanted, palette.dark, material);
         let mut applied = APPLIED.lock().unwrap_or_else(|p| p.into_inner());
-        if let Some((window, was_wanted, dark, accepted)) = *applied
-            && (window, was_wanted, dark) == key
+        if let Some((window, was_wanted, dark, previous_material, accepted)) = *applied
+            && (window, was_wanted, dark, previous_material) == key
         {
             return accepted;
         }
+        // Clear the previous legacy material before applying the new choice.
+        // These calls are cached above, never made on every unchanged frame.
+        let _ = window_vibrancy::clear_acrylic(frame);
+        let _ = window_vibrancy::clear_mica(frame);
         // SAFETY: a live window of this process, on its own thread; the
         // attributes are plain values of the sizes DWM expects.
         let accepted = unsafe {
@@ -119,12 +144,15 @@ mod platform {
                 size_of::<BOOL>() as u32,
             );
             let backdrop = if wanted {
-                DWMSBT_MAINWINDOW
+                match material {
+                    WindowMaterial::Acrylic => DWMSBT_TRANSIENTWINDOW,
+                    WindowMaterial::Mica | WindowMaterial::Auto => DWMSBT_MAINWINDOW,
+                    WindowMaterial::Solid => DWMSBT_NONE,
+                }
             } else {
                 DWMSBT_NONE
             };
-            // Mica needs Windows 11 22H2; earlier versions refuse, and the
-            // window stays opaque.
+            // Prefer the documented DWM API on Windows 11 22H2 and later.
             let set = DwmSetWindowAttribute(
                 hwnd,
                 DWMWA_SYSTEMBACKDROP_TYPE,
@@ -146,11 +174,37 @@ mod platform {
             let extended = DwmExtendFrameIntoClientArea(hwnd, &margins);
             wanted && set.is_ok() && extended.is_ok()
         };
+        let accepted = accepted
+            || (wanted
+                && match material {
+                    WindowMaterial::Auto => {
+                        window_vibrancy::apply_mica(frame, Some(palette.dark)).is_ok()
+                            || acrylic(frame, palette)
+                    }
+                    WindowMaterial::Mica => {
+                        window_vibrancy::apply_mica(frame, Some(palette.dark)).is_ok()
+                    }
+                    WindowMaterial::Acrylic => acrylic(frame, palette),
+                    WindowMaterial::Solid => false,
+                });
         if wanted && !accepted {
-            log::info!("Mica is unavailable here; the Messages theme stays opaque");
+            log::info!("The desktop material is unavailable; using the theme's opaque colours");
         }
-        *applied = Some((key.0, key.1, key.2, accepted));
+        *applied = Some((key.0, key.1, key.2, key.3, accepted));
         accepted
+    }
+
+    fn acrylic(frame: &eframe::Frame, palette: &crate::theme::Palette) -> bool {
+        window_vibrancy::apply_acrylic(
+            frame,
+            Some((
+                palette.window.r(),
+                palette.window.g(),
+                palette.window.b(),
+                if palette.dark { 180 } else { 215 },
+            )),
+        )
+        .is_ok()
     }
 }
 
@@ -164,7 +218,12 @@ mod platform {
     /// which ZapFast does not speak yet) or not at all (GNOME), and an
     /// unblurred desktop behind the sidebar would cost its text contrast; X11
     /// may lack a compositor entirely. All of them keep the opaque window.
-    pub fn apply(frame: &eframe::Frame, _palette: &crate::theme::Palette, wanted: bool) -> bool {
+    pub fn apply(
+        frame: &eframe::Frame,
+        _palette: &crate::theme::Palette,
+        wanted: bool,
+        _material: crate::settings::WindowMaterial,
+    ) -> bool {
         wanted
             && may_show_through()
             && frame
@@ -214,7 +273,12 @@ mod platform {
         false
     }
 
-    pub fn apply(_frame: &eframe::Frame, _palette: &crate::theme::Palette, _wanted: bool) -> bool {
+    pub fn apply(
+        _frame: &eframe::Frame,
+        _palette: &crate::theme::Palette,
+        _wanted: bool,
+        _material: crate::settings::WindowMaterial,
+    ) -> bool {
         false
     }
 }

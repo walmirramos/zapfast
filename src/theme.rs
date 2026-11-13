@@ -5,6 +5,10 @@
 
 use egui::{Color32, CornerRadius, Response, Sense, Stroke, Vec2};
 
+mod fluent_icons;
+#[cfg(windows)]
+mod windows;
+
 /// A local JSON palette, known by its filename in the themes directory.
 pub type CustomTheme = fastframe_theme::CustomTheme<Palette>;
 
@@ -102,10 +106,20 @@ pub enum BubbleStyle {
     /// As macOS Messages draws them: rounder, flat, with a curled tail under
     /// the last message of a run.
     Messages,
+    /// Windows 11's flat cards, with the original message layout and actions.
+    Fluent,
 }
 
 impl Palette {
     pub fn dark() -> Self {
+        let palette = Self::whatsapp_dark();
+        #[cfg(windows)]
+        let palette = windows::palette(palette);
+        palette
+    }
+
+    /// The unchanged classic palette, also used by custom-theme rendering tests.
+    pub(crate) fn whatsapp_dark() -> Self {
         Self {
             dark: true,
             window: Color32::from_rgb(0x0b, 0x14, 0x1a),
@@ -202,6 +216,14 @@ impl Palette {
     }
 
     pub fn light() -> Self {
+        let palette = Self::whatsapp_light();
+        #[cfg(windows)]
+        let palette = windows::palette(palette);
+        palette
+    }
+
+    /// The original light palette; its classic bubble geometry remains available.
+    pub(crate) fn whatsapp_light() -> Self {
         Self {
             dark: false,
             window: Color32::from_rgb(0xf0, 0xf2, 0xf5),
@@ -257,10 +279,15 @@ impl Palette {
         self.bubbles == BubbleStyle::Messages
     }
 
+    /// A desktop material does not opt into another theme's layout or controls.
+    pub fn system_material(&self) -> bool {
+        self.vibrant() || self.bubbles == BubbleStyle::Fluent
+    }
+
     /// The chat list's background. Over a window's material it only darkens
     /// it a little; without one, it is the panel's own colour.
     pub fn sidebar(&self) -> Color32 {
-        if self.vibrant() && crate::backdrop::active() {
+        if self.system_material() && crate::backdrop::active() {
             self.panel.gamma_multiply(SIDEBAR_TINT)
         } else {
             self.panel
@@ -663,6 +690,8 @@ pub fn install(ctx: &egui::Context) {
     fastframe_icons::install::<Icon>(ctx);
     // The drawn caption buttons' fallback glyphs.
     fastframe_titlebar::install(ctx);
+    #[cfg(windows)]
+    windows::install(ctx);
     // Drop the raw bytes and the decoded pixels once a texture is on the GPU.
     // egui keeps all three copies of every image otherwise, and only ever
     // evicts the textures of SVGs.
@@ -671,6 +700,8 @@ pub fn install(ctx: &egui::Context) {
 
 /// Applies the palette to egui widgets.
 pub fn apply(ctx: &egui::Context, palette: &Palette) {
+    #[cfg(windows)]
+    windows::set_active(ctx, palette.bubbles == BubbleStyle::Fluent);
     let mut style = (*ctx.global_style()).clone();
     let visuals = &mut style.visuals;
     *visuals = if palette.dark {
@@ -761,7 +792,29 @@ pub fn apply(ctx: &egui::Context, palette: &Palette) {
     style.interaction.tooltip_delay = 0.4;
     style.animation_time = 0.12;
     style.url_in_tooltip = false;
+    #[cfg(windows)]
+    if palette.bubbles == BubbleStyle::Fluent {
+        style.visuals.window_corner_radius = CornerRadius::same(8);
+        for widget in [
+            &mut style.visuals.widgets.inactive,
+            &mut style.visuals.widgets.hovered,
+            &mut style.visuals.widgets.active,
+            &mut style.visuals.widgets.open,
+        ] {
+            widget.corner_radius = CornerRadius::same(4);
+        }
+    }
     ctx.set_global_style(style);
+}
+
+/// Popups retain their measured frame and all interaction; only the material changes.
+pub fn menu_fill(palette: &Palette) -> Color32 {
+    if palette.bubbles == BubbleStyle::Fluent {
+        let color = palette.overlay;
+        Color32::from_rgba_unmultiplied(color.r(), color.g(), color.b(), 240)
+    } else {
+        palette.overlay
+    }
 }
 
 /// Whether the interface is drawn in the bundled Inter instead of the
@@ -803,6 +856,7 @@ fn install_fonts(ctx: &egui::Context) {
         .primary(primary)
         .definitions();
     add_tabular(&mut fonts);
+    fluent_icons::install(&mut fonts);
     text_rendering().apply_to(&mut fonts);
     ctx.set_fonts(fonts);
 }
@@ -986,13 +1040,13 @@ fastframe_icons::icons! {
 
 /// A static icon.
 pub fn icon(ui: &mut egui::Ui, icon: Icon, size: f32, color: Color32) -> Response {
-    ui.add(icon.image(color, size))
+    ui.add(icon.fluent_image(color, size))
 }
 
 /// Paints a centered icon in `rect` without allocating space.
 pub fn paint_icon(ui: &egui::Ui, icon: Icon, rect: egui::Rect, size: f32, color: Color32) {
     let icon_rect = egui::Rect::from_center_size(rect.center(), Vec2::splat(size));
-    icon.image(color, size).paint_at(ui, icon_rect);
+    icon.fluent_image(color, size).paint_at(ui, icon_rect);
 }
 
 /// The room an icon button keeps around its icon: one is this much wider
@@ -1061,7 +1115,8 @@ pub fn circle_button(
         ui.painter().circle_filled(rect.center(), radius, fill);
         let icon_size = diameter * 0.46;
         let icon_rect = egui::Rect::from_center_size(rect.center(), Vec2::splat(icon_size));
-        icon.image(icon_color, icon_size).paint_at(ui, icon_rect);
+        icon.fluent_image(icon_color, icon_size)
+            .paint_at(ui, icon_rect);
     }
     #[cfg(any(test, feature = "demo"))]
     crate::ui::focus::name_button(ui.ctx(), tooltip, response.id);
@@ -1226,7 +1281,7 @@ pub fn soft_button(
                 egui::pos2(x + icon_size / 2.0, rect.center().y),
                 Vec2::splat(icon_size),
             );
-            icon.image(color, icon_size).paint_at(ui, icon_rect);
+            icon.fluent_image(color, icon_size).paint_at(ui, icon_rect);
             x += icon_width;
         }
         let pos = egui::pos2(x, rect.center().y - galley.size().y / 2.0);

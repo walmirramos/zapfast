@@ -3297,6 +3297,8 @@ pub enum Action {
     SetTheme(crate::settings::ThemeChoice),
     /// Draws the interface in the platform's font or in the bundled Inter.
     SetFont(crate::settings::FontChoice),
+    /// Chooses a desktop material without changing the theme or account state.
+    SetWindowMaterial(crate::settings::WindowMaterial),
     /// Windows and Linux: draws ZapFast's own title bar and window buttons
     /// (`true`) or the desktop's. Decorations are fixed when a window is
     /// made, so the window is replaced.

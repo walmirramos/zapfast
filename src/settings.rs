@@ -38,6 +38,18 @@ pub enum ThemeChoice {
     Messages,
 }
 
+/// The Windows desktop material. Other platforms retain their native backdrop.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WindowMaterial {
+    Acrylic,
+    Mica,
+    Solid,
+    #[default]
+    #[serde(other)]
+    Auto,
+}
+
 impl ThemeChoice {
     /// The choices Settings offers, on every platform. Messages shows the
     /// desktop through its window where the platform can, and is opaque in
@@ -418,6 +430,7 @@ pub struct Settings {
     pub(crate) messages_theme: bool,
     /// The interface's typeface.
     pub font: FontChoice,
+    pub window_material: WindowMaterial,
     /// Windows and Linux: draw ZapFast's own title bar and window buttons
     /// instead of the desktop's. Off by default: on some Intel graphics
     /// drivers a frameless window shows a black band at the top and its
@@ -557,6 +570,7 @@ impl Default for Settings {
             theme: ThemeChoice::System,
             messages_theme: false,
             font: FontChoice::System,
+            window_material: WindowMaterial::default(),
             custom_titlebar: false,
             interface_language: None,
             custom_theme: None,
@@ -570,7 +584,7 @@ impl Default for Settings {
             send_read_receipts: true,
             send_typing: true,
             auto_download: true,
-            show_wallpaper: true,
+            show_wallpaper: !cfg!(windows),
             wallpaper_color: WallpaperColor::Theme,
             dark_wallpaper_color: WallpaperColor::Theme,
             wallpaper_image: None,
@@ -1038,6 +1052,31 @@ mod tests {
         assert_eq!(saved["font"], "inter");
     }
 
+    #[test]
+    fn window_materials_do_not_reset_older_or_newer_settings() {
+        for material in [None, Some("future-material")] {
+            let mut document = serde_json::json!({"font": "inter", "enter_sends": false});
+            if let Some(material) = material {
+                document["window_material"] = material.into();
+            }
+            let settings: Settings = serde_json::from_value(document).unwrap();
+            assert_eq!(settings.window_material, WindowMaterial::Auto);
+            assert_eq!(settings.font, FontChoice::Inter);
+            assert!(!settings.enter_sends);
+        }
+        let settings = Settings {
+            window_material: WindowMaterial::Acrylic,
+            ..Settings::default()
+        };
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("settings.json");
+        settings.save(&path).unwrap();
+        assert_eq!(
+            Settings::load(&path).window_material,
+            WindowMaterial::Acrylic
+        );
+    }
+
     /// The Messages theme is saved by name, and palettes cached before
     /// bubble styles existed keep WhatsApp's bubbles.
     #[test]
@@ -1084,7 +1123,7 @@ mod tests {
         assert!(parsed.enter_sends);
         assert!(parsed.check_for_updates);
         assert!(!parsed.download_updates_automatically);
-        assert!(parsed.show_wallpaper);
+        assert_eq!(parsed.show_wallpaper, !cfg!(windows));
         assert_eq!(parsed.wallpaper_color, WallpaperColor::Theme);
         assert!(parsed.pause_other_media);
         assert_eq!(parsed.window_width, None);

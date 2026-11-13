@@ -26,6 +26,11 @@ const SATURATION: f32 = 1.3;
 /// A paint callback that frosts `rect`, the bottom `fade` points easing from
 /// blurred to sharp.
 pub fn shape(rect: egui::Rect, fade: f32) -> egui::Shape {
+    rounded_shape(rect, fade, 0.0)
+}
+
+/// The same in-app frost, clipped to a popup's rounded outline.
+pub(crate) fn rounded_shape(rect: egui::Rect, fade: f32, radius: f32) -> egui::Shape {
     egui::Shape::Callback(egui::PaintCallback {
         rect,
         callback: Arc::new(egui_glow::CallbackFn::new(move |info, painter| {
@@ -40,7 +45,7 @@ pub fn shape(rect: egui::Rect, fade: f32) -> egui::Shape {
             }
             if let Some((_, Some(glass))) = glass.as_mut() {
                 // SAFETY: as above.
-                unsafe { glass.frost(gl, &info, fade) };
+                unsafe { glass.frost(gl, &info, fade, radius * info.pixels_per_point) };
             }
         })),
     })
@@ -102,6 +107,8 @@ uniform sampler2D u_sharp;
 uniform sampler2D u_blur;
 uniform float u_fade;
 uniform float u_saturation;
+uniform float u_radius;
+uniform vec2 u_size;
 in vec2 v_uv;
 out vec4 o_color;
 void main() {
@@ -110,6 +117,11 @@ void main() {
     // Colours are premultiplied, so they stay within their alpha.
     blur.rgb = clamp(mix(vec3(luma), blur.rgb, u_saturation), 0.0, blur.a);
     float frost = u_fade > 0.0 ? smoothstep(0.0, u_fade, v_uv.y) : 1.0;
+    if (u_radius > 0.0) {
+        vec2 q = abs((v_uv - 0.5) * u_size) - (u_size * 0.5 - u_radius);
+        float distance = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - u_radius;
+        frost *= 1.0 - smoothstep(-0.5, 0.5, distance);
+    }
     o_color = mix(texture(u_sharp, v_uv), blur, frost);
 }
 ";
@@ -139,7 +151,13 @@ impl Glass {
     }
 
     /// Blurs the region of the bound framebuffer under `info`'s rectangle.
-    unsafe fn frost(&mut self, gl: &glow::Context, info: &egui::PaintCallbackInfo, fade: i32) {
+    unsafe fn frost(
+        &mut self,
+        gl: &glow::Context,
+        info: &egui::PaintCallbackInfo,
+        fade: i32,
+        radius: f32,
+    ) {
         let region = info.viewport_in_pixels();
         let clip = info.clip_rect_in_pixels();
         let (x, y, w, h) = (
@@ -215,6 +233,8 @@ impl Glass {
             gl.uniform_1_i32(uniform("u_blur").as_ref(), 1);
             gl.uniform_1_f32(uniform("u_fade").as_ref(), fade as f32 / h as f32);
             gl.uniform_1_f32(uniform("u_saturation").as_ref(), SATURATION);
+            gl.uniform_1_f32(uniform("u_radius").as_ref(), radius);
+            gl.uniform_2_f32(uniform("u_size").as_ref(), w as f32, h as f32);
             gl.draw_arrays(glow::TRIANGLES, 0, 3);
             gl.bind_texture(glow::TEXTURE_2D, None);
             gl.active_texture(glow::TEXTURE0);
