@@ -43,10 +43,11 @@ pub enum ThemeChoice {
 #[serde(rename_all = "lowercase")]
 pub enum WindowMaterial {
     Acrylic,
+    Mica,
     Solid,
     #[default]
     #[serde(other)]
-    Mica,
+    Auto,
 }
 
 impl ThemeChoice {
@@ -1059,7 +1060,7 @@ mod tests {
                 document["window_material"] = material.into();
             }
             let settings: Settings = serde_json::from_value(document).unwrap();
-            assert_eq!(settings.window_material, WindowMaterial::Mica);
+            assert_eq!(settings.window_material, WindowMaterial::Auto);
             assert_eq!(settings.font, FontChoice::Inter);
             assert!(!settings.enter_sends);
         }

@@ -359,9 +359,9 @@ fn sections(app: &App) -> Vec<Section> {
             "Window material"
         },
         if locale == Locale::PortugueseBrazil {
-            "Mica e Acrylic no Windows 11; fundo sólido quando indisponíveis."
+            "Mica no Windows 11 e Acrylic no Windows 10/11. Sólido usa menos efeitos."
         } else {
-            "Mica and Acrylic on Windows 11; a solid background when unavailable."
+            "Mica on Windows 11 and Acrylic on Windows 10/11. Solid uses fewer effects."
         },
         material_picker,
     );
@@ -1203,6 +1203,14 @@ fn material_picker(ui: &mut egui::Ui, app: &mut App) {
     use crate::settings::WindowMaterial;
     let selected = app.settings.window_material;
     let choices = [
+        (
+            WindowMaterial::Auto,
+            if app.locale == Locale::PortugueseBrazil {
+                "Automático (Mica/Acrylic)"
+            } else {
+                "Automatic (Mica/Acrylic)"
+            },
+        ),
         (WindowMaterial::Mica, "Mica"),
         (WindowMaterial::Acrylic, "Acrylic"),
         (

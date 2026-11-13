@@ -98,8 +98,7 @@ mod platform {
     use windows::Win32::UI::Controls::MARGINS;
     use windows::core::BOOL;
 
-    /// Windows 11 22H2 and later; earlier versions refuse Mica in `apply`,
-    /// and the window stays opaque.
+    /// Windows 11 uses Mica; Windows 10 can fall back to native Acrylic.
     pub fn may_show_through() -> bool {
         true
     }
@@ -130,6 +129,10 @@ mod platform {
         {
             return accepted;
         }
+        // Clear the previous legacy material before applying the new choice.
+        // These calls are cached above, never made on every unchanged frame.
+        let _ = window_vibrancy::clear_acrylic(frame);
+        let _ = window_vibrancy::clear_mica(frame);
         // SAFETY: a live window of this process, on its own thread; the
         // attributes are plain values of the sizes DWM expects.
         let accepted = unsafe {
@@ -143,14 +146,13 @@ mod platform {
             let backdrop = if wanted {
                 match material {
                     WindowMaterial::Acrylic => DWMSBT_TRANSIENTWINDOW,
-                    WindowMaterial::Mica => DWMSBT_MAINWINDOW,
+                    WindowMaterial::Mica | WindowMaterial::Auto => DWMSBT_MAINWINDOW,
                     WindowMaterial::Solid => DWMSBT_NONE,
                 }
             } else {
                 DWMSBT_NONE
             };
-            // Mica needs Windows 11 22H2; earlier versions refuse, and the
-            // window stays opaque.
+            // Prefer the documented DWM API on Windows 11 22H2 and later.
             let set = DwmSetWindowAttribute(
                 hwnd,
                 DWMWA_SYSTEMBACKDROP_TYPE,
@@ -172,11 +174,37 @@ mod platform {
             let extended = DwmExtendFrameIntoClientArea(hwnd, &margins);
             wanted && set.is_ok() && extended.is_ok()
         };
+        let accepted = accepted
+            || (wanted
+                && match material {
+                    WindowMaterial::Auto => {
+                        window_vibrancy::apply_mica(frame, Some(palette.dark)).is_ok()
+                            || acrylic(frame, palette)
+                    }
+                    WindowMaterial::Mica => {
+                        window_vibrancy::apply_mica(frame, Some(palette.dark)).is_ok()
+                    }
+                    WindowMaterial::Acrylic => acrylic(frame, palette),
+                    WindowMaterial::Solid => false,
+                });
         if wanted && !accepted {
             log::info!("The desktop material is unavailable; using the theme's opaque colours");
         }
         *applied = Some((key.0, key.1, key.2, key.3, accepted));
         accepted
+    }
+
+    fn acrylic(frame: &eframe::Frame, palette: &crate::theme::Palette) -> bool {
+        window_vibrancy::apply_acrylic(
+            frame,
+            Some((
+                palette.window.r(),
+                palette.window.g(),
+                palette.window.b(),
+                if palette.dark { 180 } else { 215 },
+            )),
+        )
+        .is_ok()
     }
 }
 

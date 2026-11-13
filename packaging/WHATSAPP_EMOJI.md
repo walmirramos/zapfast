@@ -17,3 +17,8 @@ ZapFast's MIT license or by the font-building tools' Apache license.
 The supplying project describes its images as provided for non-commercial,
 educational use. This is an unofficial client, without WhatsApp endorsement.
 Keep this attribution and review the artwork terms before redistributing it.
+
+The picker catalog includes Unicode 18 entries, such as U+1FAEB (cracking face),
+which neither this pinned WhatsApp font nor the original bundled Noto font draws.
+These entries retain the original text fallback; their characters are not replaced.
+

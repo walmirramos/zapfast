@@ -2020,6 +2020,14 @@ pub fn apply_flags(app: &mut App, page: Option<&str>) {
         match part {
             "history-date" => history_date_sample(app),
             "chat" | "" => {}
+            "material-solid" => {
+                app.settings.window_material = crate::settings::WindowMaterial::Solid
+            }
+            "material-acrylic" => {
+                app.settings.window_material = crate::settings::WindowMaterial::Acrylic
+            }
+            "material-mica" => app.settings.window_material = crate::settings::WindowMaterial::Mica,
+            "material-auto" => app.settings.window_material = crate::settings::WindowMaterial::Auto,
             "blocked" | "blocked-contacts" | "block-confirm" => {
                 app.blocklist.ids = Some(if part == "block-confirm" {
                     Default::default()

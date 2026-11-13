@@ -307,6 +307,8 @@ nokhwa = { version = "0.10.11", default-features = false, features = ["input-msm
 # Pauses other apps' media through the system media transport controls while
 # recording or playing voice messages. The same version cpal already uses.
 windows = { version = "0.62", features = ["Media_Control", "Foundation_Collections", "Win32_Foundation", "Win32_Graphics_Dwm", "Win32_System_Com", "Win32_UI_Controls", "Win32_UI_WindowsAndMessaging"] }
+# Native Acrylic fallback on Windows 10 and Mica on early Windows 11.
+window-vibrancy = "=0.8.1"
 
 # The icon and version information Windows shows for the executable.
 [target.'cfg(windows)'.build-dependencies]

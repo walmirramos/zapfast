@@ -18,8 +18,9 @@
 This fork keeps the complete original Rust/egui client and its account, messaging,
 call and media flows. Windows uses neutral light/dark surfaces, a plain chat
 background, Segoe Fluent icons and WhatsApp emoji artwork. Appearance offers
-Mica, Acrylic and solid window materials, with an opaque fallback where Windows
-does not support the requested material. These are Windows desktop materials,
+automatic, Mica, Acrylic and solid window materials. Automatic uses Mica on
+Windows 11 and falls back to Acrylic on Windows 10, with an opaque fallback
+where the requested effect is unavailable. These are Windows desktop materials,
 not a replacement of the application with WinUI 3 controls.
 
 Before building for Windows, run `python packaging/fetch-emoji.py` to fetch and
