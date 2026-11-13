@@ -14,3 +14,6 @@
 /packaging/flatpak/flatpak-cargo-generator.py
 /.flatpak-builder/
 /build-dir/
+
+# External emoji artwork is fetched by its pinned digest, never relicensed as MIT.
+/assets/fonts/WhatsAppEmoji.ttf

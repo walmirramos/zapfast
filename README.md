@@ -7,11 +7,26 @@
 <p align="center"><strong>WhatsApp, native and fast.</strong><br>A lightweight WhatsApp app for Linux, macOS, and Windows.</p>
 
 <p align="center">
-  <a href="https://zapfast.rocks/download/"><strong>Download</strong></a> ·
+  <a href="https://github.com/walmirramos/zapfast/releases"><strong>Download this edition</strong></a> ·
   <a href="https://zapfast.rocks/getting-started/">Getting started</a> ·
   <a href="https://zapfast.rocks/using-zapfast/">User guide</a> ·
   <a href="CONTRIBUTING.md">Contribute</a>
 </p>
+
+## Windows 11 visual edition
+
+This fork keeps the complete original Rust/egui client and its account, messaging,
+call and media flows. Windows uses neutral light/dark surfaces, a plain chat
+background, Segoe Fluent icons and WhatsApp emoji artwork. Appearance offers
+Mica, Acrylic and solid window materials, with an opaque fallback where Windows
+does not support the requested material. These are Windows desktop materials,
+not a replacement of the application with WinUI 3 controls.
+
+Before building for Windows, run `python packaging/fetch-emoji.py` to fetch and
+verify the external emoji font. See [artwork provenance](packaging/WHATSAPP_EMOJI.md)
+and [the signed visual update channel](packaging/WINDOWS11_UPDATES.md).
+Windows updates come from this fork so upstream binaries cannot replace its
+appearance. Original project documentation and credits follow below.
 
 <p align="center">
   <a href="Cargo.toml"><img src="https://img.shields.io/badge/Built_with-Rust-00a884" alt="Built with Rust"></a>

@@ -9612,6 +9612,11 @@ impl App {
                 crate::theme::set_font(ctx, choice);
                 ctx.request_repaint();
             }
+            Action::SetWindowMaterial(material) => {
+                self.settings.window_material = material;
+                self.mark_settings_dirty();
+                ctx.request_repaint();
+            }
             Action::SetCustomTitlebar(custom) => {
                 if self.settings.custom_titlebar != custom {
                     self.settings.custom_titlebar = custom;
@@ -18865,7 +18870,7 @@ mod tests {
         let ctx = egui::Context::default();
         let mut first = CustomTheme {
             filename: "mine.json".into(),
-            palette: Palette::dark(),
+            palette: Palette::whatsapp_dark(),
         };
         first.palette.accent = egui::Color32::RED;
         app.custom_themes = Catalog::preview(vec![first.clone()], false);

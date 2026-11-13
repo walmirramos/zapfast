@@ -1,0 +1,127 @@
+name: Windows 11 visual edition
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows11-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'walmirramos/zapfast'
+    runs-on: windows-latest
+    timeout-minutes: 360
+    env:
+      CARGO_BUILD_JOBS: 1
+      ZAPFAST_GIPHY_KEY: ${{ secrets.ZAPFAST_GIPHY_KEY || secrets.FASTSAPP_GIPHY_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Select the native Perl and MSVC toolchain
+        shell: pwsh
+        run: |
+          if (-not (Test-Path C:\Strawberry\perl\bin\perl.exe)) {
+            choco install strawberryperl --yes --no-progress
+            if ($LASTEXITCODE) { throw 'Native Perl installation failed' }
+          }
+          'C:\Strawberry\perl\bin' >> $env:GITHUB_PATH
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) { throw 'MSVC installation missing' }
+          $native = & cmd.exe /c "`"$vs\VC\Auxiliary\Build\vcvars64.bat`" >nul && set"
+          foreach ($line in $native) {
+            if ($line -match '^([^=]+)=(.*)$') {
+              if ($matches[1] -eq 'Path') { $matches[2] -split ';' | Where-Object { $_ } >> $env:GITHUB_PATH }
+              elseif ($matches[1] -in 'INCLUDE','LIB','LIBPATH','VCINSTALLDIR','VCToolsInstallDir','WindowsSdkDir','WindowsSDKVersion','VSCMD_ARG_TGT_ARCH','VSCMD_ARG_HOST_ARCH') { "$($matches[1])=$($matches[2])" >> $env:GITHUB_ENV }
+            }
+          }
+          'C:\Strawberry\perl\bin' >> $env:GITHUB_PATH
+          'PERL=C:\Strawberry\perl\bin\perl.exe' >> $env:GITHUB_ENV
+      - name: Fetch pinned emoji artwork
+        run: python packaging/fetch-emoji.py
+      - name: Check version and update channel
+        shell: pwsh
+        run: |
+          $version = ([regex]::Match((Get-Content Cargo.toml -Raw), '(?m)^version = "([^"]+)"')).Groups[1].Value
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") { throw 'Tag and package version differ' }
+          if ((Get-Content src/updates.rs -Raw) -notmatch 'walmirramos/zapfast') { throw 'Visual update channel missing' }
+      - run: cargo fmt --all --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo clippy --locked --all-targets --all-features -- -D warnings
+      - run: cargo test --locked --all-targets
+      - run: cargo test --locked --all-targets --all-features
+      - run: cargo doc --locked --all-features --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+      - run: cargo build --locked --release
+      - name: Install packaging tools
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          if ($LASTEXITCODE) { throw 'WiX installation failed' }
+          wix extension add --global WixToolset.Util.wixext/5.0.2
+          if ($LASTEXITCODE) { throw 'WiX extension installation failed' }
+          choco install innosetup --version 6.7.4 --yes --no-progress
+          if ($LASTEXITCODE) { throw 'Inno Setup installation failed' }
+      - name: Package the complete visual edition
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $redist = Get-ChildItem "$vs\VC\Redist\MSVC" -Directory | Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+          $crt = Get-ChildItem "$($redist.FullName)\x64" -Directory -Filter 'Microsoft.VC14*.CRT' | Select-Object -First 1
+          if (-not $crt) { throw 'x64 runtime missing' }
+          ./packaging/windows/visual-build.ps1 -Binary target/release/zapfast.exe -Wix "$env:USERPROFILE\.dotnet\tools\wix.exe" -Iscc "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" -CrtDir $crt.FullName -OutputDir dist
+          if (-not $?) { throw 'Packaging failed' }
+          $version = ([regex]::Match((Get-Content Cargo.toml -Raw), '(?m)^version = "([^"]+)"')).Groups[1].Value
+          $stem = "zapfast-v$version-x86_64-pc-windows-msvc"
+          Copy-Item "dist/ZapFast-Windows11-Visual-$version-x64.msi" "dist/$stem.msi"
+          Copy-Item "dist/ZapFast-Windows11-Visual-$version-Setup-x64.exe" "dist/$stem-setup.exe"
+          Copy-Item "dist/ZapFast-Windows11-Visual-$version-Portable-x64.zip" "dist/$stem.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows11-visual
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    environment: release-signing
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v7
+        with:
+          name: windows11-visual
+          path: dist
+      - uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1.335.0
+        with:
+          ruby-version: '4.0'
+      - name: Sign the exact update manifest
+        uses: crmne/native-packages/.github/actions/sign-release@25a4214d2f203357c84b069f39de7c17c0be6253 # v0.11.0
+        with:
+          directory: dist
+          public-key: assets/windows11-update-public-key.hex
+          key-env: ZAPFAST_UPDATE_SIGNING_KEY
+        env:
+          ZAPFAST_UPDATE_SIGNING_KEY: ${{ secrets.ZAPFAST_UPDATE_SIGNING_KEY }}
+      - name: Publish the reviewed release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="packaging/release-notes/${GITHUB_REF_NAME}.md"
+          test -f "$notes"
+          gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --title "ZapFast Windows 11 ${GITHUB_REF_NAME}" --notes-file "$notes"

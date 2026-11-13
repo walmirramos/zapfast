@@ -3,7 +3,8 @@
 //! The crate checks for a newer release, refuses package-managed copies,
 //! downloads and verifies the update against the publisher signature, and
 //! hands it to a helper that installs it and rolls back if it does not start.
-//! ZapFast keeps its names, its key, its proxy and its interface.
+//! The Windows visual edition uses its own repository and publisher key;
+//! official upstream packages cannot replace the custom appearance.
 
 pub use fastframe_update::{
     CHECK_INTERVAL, DownloadState, Installation, Kind, Prepared, Release, Source, Unsupported,
@@ -22,12 +23,24 @@ pub const CONFIG: UpdateConfig = UpdateConfig {
         executable_names: &[],
         legacy_bundle_names: &["FastsApp.app"],
     },
-    publisher_key: Some(include_str!("../assets/update-public-key.hex")),
+    publisher_key: Some(if cfg!(windows) {
+        include_str!("../assets/windows11-update-public-key.hex")
+    } else {
+        include_str!("../assets/update-public-key.hex")
+    }),
     // The next release key, backed up outside GitHub. Releases stay signed
     // with the current key until installs trust this one too.
-    additional_publisher_keys: &[include_str!("../assets/update-public-key-next.hex")],
+    additional_publisher_keys: if cfg!(windows) {
+        &[]
+    } else {
+        &[include_str!("../assets/update-public-key-next.hex")]
+    },
     ..UpdateConfig::new(
-        "crmne/zapfast",
+        if cfg!(windows) {
+            "walmirramos/zapfast"
+        } else {
+            "crmne/zapfast"
+        },
         "ZapFast",
         "zapfast",
         env!("CARGO_PKG_VERSION"),

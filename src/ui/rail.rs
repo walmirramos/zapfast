@@ -362,6 +362,13 @@ fn destination_button(
         let hovered = response.hovered() || response.has_focus();
         if lit {
             widgets::highlight_card(ui, palette, plate, palette.surface_active);
+            if palette.bubbles == theme::BubbleStyle::Fluent {
+                let marker = Rect::from_min_size(
+                    egui::pos2(plate.left(), plate.center().y - 8.0),
+                    vec2(3.0, 16.0),
+                );
+                ui.painter().rect_filled(marker, 2.0, palette.accent);
+            }
         } else if hovered {
             widgets::highlight_card(ui, palette, plate, palette.surface_hover);
         }

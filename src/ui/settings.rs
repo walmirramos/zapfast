@@ -351,6 +351,20 @@ fn sections(app: &App) -> Vec<Section> {
         Text::default()
     };
     appearance.row(translated(locale, "Theme"), detail, theme_picker);
+    #[cfg(windows)]
+    appearance.row(
+        if locale == Locale::PortugueseBrazil {
+            "Material da janela"
+        } else {
+            "Window material"
+        },
+        if locale == Locale::PortugueseBrazil {
+            "Mica e Acrylic no Windows 11; fundo sólido quando indisponíveis."
+        } else {
+            "Mica and Acrylic on Windows 11; a solid background when unavailable."
+        },
+        material_picker,
+    );
     appearance.row(
         translated(locale, "Font"),
         translated(
@@ -1184,6 +1198,40 @@ fn theme_picker(ui: &mut egui::Ui, app: &mut App) {
 const THEMES_GUIDE: &str = "https://zapfast.rocks/themes/";
 
 /// The interface language menu.
+#[cfg(windows)]
+fn material_picker(ui: &mut egui::Ui, app: &mut App) {
+    use crate::settings::WindowMaterial;
+    let selected = app.settings.window_material;
+    let choices = [
+        (WindowMaterial::Mica, "Mica"),
+        (WindowMaterial::Acrylic, "Acrylic"),
+        (
+            WindowMaterial::Solid,
+            if app.locale == Locale::PortugueseBrazil {
+                "Sólido"
+            } else {
+                "Solid"
+            },
+        ),
+    ];
+    let label = choices
+        .iter()
+        .find(|(choice, _)| *choice == selected)
+        .unwrap()
+        .1;
+    let response = egui::ComboBox::from_id_salt("window_material")
+        .selected_text(label)
+        .width(200.0_f32.min(ui.available_width()))
+        .show_ui(ui, |ui| {
+            for (choice, label) in choices {
+                if theme_option(ui, &app.palette, label, selected == choice) {
+                    app.actions.push(Action::SetWindowMaterial(choice));
+                }
+            }
+        });
+    theme::reveal_focus(&response.response);
+}
+
 fn font_picker(ui: &mut egui::Ui, app: &mut App) {
     use crate::settings::FontChoice;
     let palette = app.palette;

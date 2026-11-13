@@ -1,8 +1,6 @@
-//! Colour emoji in the platform's own style, from fastframe-emoji: Apple
-//! Color Emoji on macOS, Segoe UI Emoji on Windows, the desktop's emoji font
-//! on Linux, and the bundled Noto Color Emoji for whatever they lack (the
-//! country flags Segoe UI Emoji has none of, or a desktop without an emoji
-//! font).
+//! WhatsApp's emoji artwork on Windows, rendered locally through fastframe-emoji.
+//! Other platforms retain their original system-font rendering.
+//! Character sequences, selection, copying and sending remain unchanged.
 //!
 //! Layout replaces each emoji sequence with a transparent placeholder, and
 //! its picture is painted over it. New pictures are drawn on a worker
@@ -15,13 +13,17 @@ use egui::{Pos2, Rect, TextFormat};
 
 pub use fastframe_emoji::{PLACEHOLDER, only_emoji};
 
-/// Noto Color Emoji, behind the platform's font.
+/// Pinned external artwork; see packaging/WHATSAPP_EMOJI.md.
+#[cfg(windows)]
+const BUNDLED: &[u8] = include_bytes!("../assets/fonts/WhatsAppEmoji.ttf");
+#[cfg(not(windows))]
 const BUNDLED: &[u8] = include_bytes!("../assets/fonts/NotoColorEmoji.ttf");
 
 fn setup() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
         fastframe_emoji::EmojiSetup::default()
+            .system(!cfg!(windows))
             .bundled(BUNDLED)
             .synchronous(cfg!(any(test, feature = "demo")))
             .install();

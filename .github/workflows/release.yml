@@ -15,6 +15,7 @@ env:
 
 jobs:
   release-source:
+    if: github.repository == 'crmne/zapfast'
     name: tag is on main
     runs-on: ubuntu-latest
     steps:

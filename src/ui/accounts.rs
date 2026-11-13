@@ -251,7 +251,7 @@ fn account_row(app: &App, ui: &mut egui::Ui, entry: &Entry) -> Option<RowClick> 
             } else {
                 (Icon::Bell, palette.secondary)
             };
-            icon.image(color, 16.0).paint_at(
+            icon.fluent_image(color, 16.0).paint_at(
                 ui,
                 Rect::from_center_size(bell_rect.center(), Vec2::splat(16.0)),
             );
@@ -262,7 +262,9 @@ fn account_row(app: &App, ui: &mut egui::Ui, entry: &Entry) -> Option<RowClick> 
         if entry.current {
             let check =
                 Rect::from_center_size(pos2(right - 8.0, rect.center().y), Vec2::splat(16.0));
-            Icon::Check.image(palette.accent, 16.0).paint_at(ui, check);
+            Icon::Check
+                .fluent_image(palette.accent, 16.0)
+                .paint_at(ui, check);
             text_right -= 24.0;
         } else if entry.unread > 0 {
             let width = widgets::badge(

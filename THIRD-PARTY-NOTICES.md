@@ -1,5 +1,14 @@
 # Third-party notices
 
+## WhatsApp emoji artwork (Windows 11 edition)
+
+The embedded external `WhatsAppEmoji.ttf` font is obtained from
+https://github.com/dmlls/whatsapp-emoji-linux/releases/tag/2.26.8.72-1 .
+Emoji images belong to WhatsApp LLC/Meta and are not MIT- or Apache-licensed
+by this project. The supplying project provides them for non-commercial,
+educational use. See `packaging/WHATSAPP_EMOJI.md` for provenance and digest.
+This edition is not affiliated with or endorsed by WhatsApp or Meta.
+
 ## Pidgin notification sounds
 
 `assets/sounds/receive.wav` and `assets/sounds/alert.wav`, built into ZapFast,

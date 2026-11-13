@@ -441,7 +441,7 @@ fn run() -> eframe::Result<()> {
             // later.
             let transparent = lease.peek(|app: &app::App| {
                 zapfast::backdrop::transparent_window(
-                    app.palette.vibrant(),
+                    app.palette.system_material(),
                     app.palette.window.a() < 255,
                 )
             });
@@ -811,7 +811,12 @@ impl Shell {
             28.0 / ctx.zoom_factor()
         };
         fastframe_titlebar::align_traffic_lights(frame, ctx, title_bar);
-        zapfast::backdrop::apply(frame, &app.palette, self.transparent);
+        zapfast::backdrop::apply(
+            frame,
+            &app.palette,
+            self.transparent,
+            app.settings.window_material,
+        );
         #[cfg(feature = "demo")]
         {
             // Keep requesting the configured screenshot size until it is applied.
